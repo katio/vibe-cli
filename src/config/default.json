@@ -1,0 +1,40 @@
+{
+  "activeProvider": "openai",
+  "llmModels": {
+    "openai": {
+      "chatModel": "gpt-3.5-turbo",
+      "embeddingModel": "text-embedding-3-small",
+      "embeddingDimension": 1536
+    },
+    "anthropic": {
+      "chatModel": "claude-3-haiku-20240307",
+      "embeddingModel": null,
+      "embeddingDimension": null
+    },
+    "gemini": {
+      "chatModel": "gemini-1.5-flash-latest",
+      "embeddingModel": "text-embedding-004",
+      "embeddingDimension": 768
+    }
+  },
+  "chunking": {
+    "text": {
+      "maxChunkSize": 1500,
+      "overlap": 100,
+      "minChunkSize": 50
+    },
+    "code": {
+      "maxLines": 100,
+      "maxChunkSize": 1500
+    }
+  },
+  "similaritySearch": {
+    "topK": 5,
+    "minScore": 0.7
+  },
+  "ignoredDirs": ["node_modules", ".git", "dist", "build", ".DS_Store"],
+  "fileExtensions": {
+    "text": [".md", ".txt", ".json", ".yaml", ".yml", ".html", ".css", ".scss", ".less"],
+    "code": [".js", ".jsx", ".ts", ".tsx", ".py", ".java", ".c", ".cpp", ".h", ".hpp", ".go", ".rs", ".rb"]
+  }
+}
