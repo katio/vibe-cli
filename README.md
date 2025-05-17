@@ -9,12 +9,12 @@ A powerful CLI tool for "vibe coding" and development assistance. This tool help
 - Supports multiple LLM providers (OpenAI, Anthropic, Gemini)
 - Local SQLite database with vector embeddings for fast semantic search
 - Cross-platform (Linux, macOS, Windows with WSL or Git Shell)
+- Automatic vector embeddings with sqlite-vec (no manual setup required)
 
 ## Prerequisites
 
 - Node.js 16 or higher
 - npm or yarn
-- SQLite with sqlite-vec extension (see setup instructions below)
 - API key for at least one LLM provider (OpenAI, Anthropic, or Google Gemini)
 
 ## Installation
@@ -35,17 +35,6 @@ A powerful CLI tool for "vibe coding" and development assistance. This tool help
    cp .env.example .env
    ```
    Then edit `.env` to add your API keys.
-
-## Setting up sqlite-vec
-
-1. Download the appropriate pre-built binary for your platform from the [sqlite-vec releases page](https://github.com/asg017/sqlite-vec/releases)
-
-2. Place the downloaded file (e.g., `vector0.dylib` for macOS, `vector0.so` for Linux, `vector0.dll` for Windows) in the project root or a known library path
-
-3. Make sure the file is executable (on Unix-like systems):
-   ```bash
-   chmod +x vector0.*
-   ```
 
 ## Configuration
 
