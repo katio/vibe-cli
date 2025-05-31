@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
-import { logger } from '../utils/logger.js';
+import { logger, setLogLevel } from '../utils/logger.js';
 
 // Get current directory
 const __filename = fileURLToPath(import.meta.url);
@@ -26,6 +26,9 @@ try {
 // Apply environment overrides
 config.dbPath = process.env.DB_PATH || './vibe-db.sqlite';
 config.logLevel = process.env.LOG_LEVEL || 'info';
+
+// Set the log level in the logger
+setLogLevel(config.logLevel);
 
 // Validate active provider
 const validProviders = ['openai', 'anthropic', 'gemini'];

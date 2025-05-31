@@ -1,6 +1,6 @@
 import chalk from 'chalk';
-import { config } from '../config/config.js';
 
+// Default log levels
 const logLevels = {
   error: 0,
   warn: 1,
@@ -9,7 +9,13 @@ const logLevels = {
   trace: 4,
 };
 
-const logLevel = logLevels[config.logLevel.toLowerCase()] || logLevels.info;
+// Default log level if config is not available
+let currentLogLevel = logLevels.info;
+
+// Function to set log level that can be called after config is loaded
+export const setLogLevel = (level) => {
+  currentLogLevel = logLevels[level?.toLowerCase()] ?? logLevels.info;
+};
 
 const log = (level, message, ...args) => {
   const timestamp = new Date().toISOString();
@@ -21,6 +27,10 @@ const log = (level, message, ...args) => {
     ).join(' ');
   }
 
+  // Skip if log level is not enabled
+  if (level === 'debug' && currentLogLevel < logLevels.debug) return;
+  if (level === 'trace' && currentLogLevel < logLevels.trace) return;
+  
   switch (level) {
     case 'error':
       console.error(chalk.red(`[ERROR] ${logMessage}`));
@@ -32,14 +42,10 @@ const log = (level, message, ...args) => {
       console.log(chalk.blue(`[INFO] ${logMessage}`));
       break;
     case 'debug':
-      if (logLevel >= logLevels.debug) {
-        console.log(chalk.gray(`[DEBUG] ${logMessage}`));
-      }
+      console.log(chalk.gray(`[DEBUG] ${logMessage}`));
       break;
     case 'trace':
-      if (logLevel >= logLevels.trace) {
-        console.log(chalk.gray(`[TRACE] ${logMessage}`));
-      }
+      console.log(chalk.magenta(`[TRACE] ${logMessage}`));
       break;
     default:
       console.log(logMessage);

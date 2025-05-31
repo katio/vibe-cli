@@ -4,13 +4,23 @@ import { promisify } from 'util';
 import { glob } from 'glob';
 import { config } from '../config/config.js';
 import { logger } from '../utils/logger.js';
+import { db } from './database.js';
+
+// This will be set by the initialize function
+let llmService;
 
 const globPromise = promisify(glob);
 
 export class FileProcessor {
-  constructor({ db, llmService }) {
+  static initialize(service) {
+    llmService = service;
+  }
+
+  constructor() {
+    if (!llmService) {
+      throw new Error('FileProcessor must be initialized with an LLM service');
+    }
     this.db = db;
-    this.llmService = llmService;
     this.processedFiles = new Set();
   }
 
@@ -82,298 +92,145 @@ export class FileProcessor {
    * @param {string} filePath - Path to the file
    * @returns {Promise<Array<{text: string, metadata: Object}>>} - The processed chunks
    */
-  async processFile(filePath) {
+  async processFile(filePath, spinner) {
     try {
-      // Skip if already processed
-      if (this.processedFiles.has(filePath)) {
-        return [];
+      const stats = await fs.stat(filePath);
+      
+      // Skip files that are too large
+      if (stats.size > config.maxFileSize) {
+        logger.warn(`Skipping large file: ${filePath} (${stats.size} bytes)`);
+        this.processedFiles.add(filePath);
+        return;
+      }
+
+      // Check if file has been modified since last processed
+      const existingDoc = await this.getDocumentByPath(filePath);
+      if (existingDoc && existingDoc.last_modified >= Math.floor(stats.mtimeMs / 1000)) {
+        logger.debug(`Skipping unchanged file: ${filePath}`);
+        this.processedFiles.add(filePath);
+        return;
       }
 
       // Read file content
       const content = await fs.readFile(filePath, 'utf-8');
-      if (!content.trim()) {
-        return [];
-      }
-
-      // Get file extension
-      const ext = path.extname(filePath).toLowerCase();
       
-      // Chunk the content based on file type
-      let chunks = [];
+      // Process file content (chunking, etc.)
+      const chunks = this.chunkContent(content, filePath);
       
-      if (config.fileExtensions.text.includes(ext)) {
-        chunks = this.chunkText(content);
-      } else if (config.fileExtensions.code.includes(ext)) {
-        chunks = this.chunkCode(content);
-      } else {
-        // Default chunking strategy
-        chunks = this.chunkText(content);
-      }
-
-      // Store chunks in the database
-      for (const chunk of chunks) {
+      // Process each chunk
+      for (const [index, chunk] of chunks.entries()) {
         try {
-          const chunkText = typeof chunk === 'string' ? chunk : chunk.text;
-          const metadata = {
+          // Store document chunk in database
+          const docId = await db.insertDocument({
             filePath,
-            extension: ext,
-            ...(typeof chunk === 'object' ? chunk.metadata : {}),
-          };
-
-          const docId = await this.db.insertDocument(filePath, chunkText, metadata);
-          
-          // Generate and store embeddings if this is a new document
-          if (docId) {
-            try {
-              const embedding = await this.llmService.getEmbedding(chunkText);
-              await this.db.insertEmbedding(docId, embedding);
-            } catch (error) {
-              logger.warn(`Failed to generate embedding for document ${docId}: ${error.message}`);
+            fileName: path.basename(filePath),
+            fileExtension: path.extname(filePath),
+            fileSize: stats.size,
+            lastModified: Math.floor(stats.mtimeMs / 1000),
+            chunkText: chunk,
+            chunkIndex: index,
+            chunkCount: chunks.length,
+            metadata: {
+              path: filePath,
+              extension: path.extname(filePath),
+              size: stats.size,
+              lastModified: stats.mtime.toISOString(),
+              chunks: chunks.length
             }
+          });
+
+          // Generate embedding for the chunk
+          if (this.llmService) {
+            try {
+              const embedding = await this.llmService.generateEmbedding(chunk);
+              await db.insertEmbedding(docId, embedding, filePath, chunk);
+              logger.debug(`Processed chunk ${index + 1}/${chunks.length} of ${filePath}`);
+            } catch (error) {
+              logger.error(`Failed to generate embedding for ${filePath} chunk ${index + 1}:`, error);
+            }
+          } else {
+            logger.warn('LLM service not available, skipping embedding generation');
           }
         } catch (error) {
-          logger.error(`Error storing chunk: ${error.message}`);
+          logger.error(`Error processing chunk ${index + 1} of ${filePath}:`, error);
         }
       }
-
+      
       this.processedFiles.add(filePath);
-      return chunks;
+      logger.debug(`Processed file: ${filePath} (${chunks.length} chunks)`);
     } catch (error) {
-      logger.error(`Error processing file ${filePath}: ${error.message}`);
+      logger.error(`Error processing file ${filePath}:`, error);
       throw error;
     }
   }
 
   /**
+   * Get a document by its file path
+   * @param {string} filePath - Path to the file
+   * @returns {Promise<Object|null>} The document or null if not found
+   */
+  async getDocumentByPath(filePath) {
+    try {
+      const stmt = db.prepare('SELECT * FROM documents WHERE file_path = ?');
+      return stmt.get(filePath);
+    } catch (error) {
+      logger.error(`Error getting document by path ${filePath}:`, error);
+      return null;
+    }
+  }
+
+  /**
    * Chunk text content into smaller pieces
-   * @param {string} text - The text to chunk
-   * @returns {Array<{text: string, metadata: Object}>} - The chunks with metadata
+   * @param {string} content - The text to chunk
+   * @param {string} filePath - The file path
+   * @returns {Array<string>} - The chunks
    */
-  chunkText(text) {
-    const { maxChunkSize, overlap, minChunkSize } = config.chunking.text;
-    const chunks = [];
-    
-    // First, try to split by paragraphs (double newline)
-    const paragraphs = text.split(/\n\s*\n/);
-    
-    for (const paragraph of paragraphs) {
-      // If paragraph is small enough, add as is
-      if (paragraph.length <= maxChunkSize) {
-        if (paragraph.trim().length >= minChunkSize) {
-          chunks.push({
-            text: paragraph.trim(),
-            metadata: { chunkType: 'paragraph' }
-          });
-        }
-        continue;
-      }
-      
-      // Otherwise, try to split by sentences
-      const sentences = this.splitIntoSentences(paragraph);
-      let currentChunk = [];
-      let currentLength = 0;
-      
-      for (const sentence of sentences) {
-        const sentenceLength = sentence.length;
-        
-        // If adding this sentence would exceed maxChunkSize, finalize current chunk
-        if (currentLength + sentenceLength > maxChunkSize && currentChunk.length > 0) {
-          chunks.push({
-            text: currentChunk.join(' ').trim(),
-            metadata: { chunkType: 'sentence_group' }
-          });
-          
-          // Start new chunk with overlap
-          const overlapStart = Math.max(0, currentChunk.length - Math.ceil(overlap / 20)); // Approximate overlap in sentences
-          currentChunk = currentChunk.slice(overlapStart);
-          currentLength = currentChunk.reduce((sum, s) => sum + s.length + 1, 0);
-        }
-        
-        currentChunk.push(sentence);
-        currentLength += sentenceLength + 1; // +1 for space
-      }
-      
-      // Add the last chunk if not empty
-      if (currentChunk.length > 0) {
-        chunks.push({
-          text: currentChunk.join(' ').trim(),
-          metadata: { chunkType: 'sentence_group' }
-        });
-      }
-    }
-    
-    // If we still have very large chunks, split by fixed size
-    const finalChunks = [];
-    for (const chunk of chunks) {
-      if (chunk.text.length <= maxChunkSize) {
-        finalChunks.push(chunk);
-      } else {
-        // Split into fixed-size chunks with overlap
-        const fixedChunks = this.splitByFixedSize(chunk.text, maxChunkSize, overlap);
-        finalChunks.push(...fixedChunks.map(text => ({
-          text,
-          metadata: { ...chunk.metadata, chunkType: 'fixed_size' }
-        })));
-      }
-    }
-    
-    return finalChunks;
-  }
+  chunkContent(content, filePath) {
+    const extension = path.extname(filePath).toLowerCase();
+    const isCode = config.fileExtensions.code.includes(extension);
+    const chunkSize = isCode ? config.chunking.codeChunkSize : config.chunking.textChunkSize;
+    const chunkOverlap = isCode ? config.chunking.codeChunkOverlap : config.chunking.textChunkOverlap;
 
-  /**
-   * Chunk code content into smaller pieces
-   * @param {string} code - The code to chunk
-   * @returns {Array<{text: string, metadata: Object}>} - The chunks with metadata
-   */
-  chunkCode(code) {
-    const { maxLines, maxChunkSize } = config.chunking.code;
-    const lines = code.split('\n');
-    const chunks = [];
-    
-    // First, try to split by functions/classes if the language supports it
-    // This is a simplified version - in a real implementation, you'd want to use a proper parser
-    const functionRegex = /(?:function|class|def|fn)\s+([a-zA-Z0-9_]+)\s*[({]/g;
-    let lastIndex = 0;
-    let match;
-    
-    while ((match = functionRegex.exec(code)) !== null) {
-      const startPos = match.index;
-      const name = match[1];
-      
-      if (startPos > lastIndex) {
-        // Add the code before this function
-        const beforeCode = code.substring(lastIndex, startPos).trim();
-        if (beforeCode) {
-          chunks.push({
-            text: beforeCode,
-            metadata: { chunkType: 'code_block' }
-          });
-        }
-      }
-      
-      // Find the end of the function/class (simplified)
-      let braceCount = 0;
-      let inString = false;
-      let stringChar = '';
-      let endPos = startPos;
-      
-      for (let i = startPos; i < code.length; i++) {
-        const char = code[i];
-        
-        if (!inString && (char === '"' || char === "'" || char === '`')) {
-          inString = true;
-          stringChar = char;
-        } else if (inString && char === stringChar && code[i-1] !== '\\') {
-          inString = false;
-        }
-        
-        if (!inString) {
-          if (char === '{' || char === '(') {
-            braceCount++;
-          } else if (char === '}' || char === ')') {
-            braceCount--;
-            if (braceCount === 0) {
-              endPos = i + 1;
-              break;
-            }
-          }
-        }
-      }
-      
-      // Add the function/class
-      const functionCode = code.substring(startPos, endPos).trim();
-      if (functionCode) {
-        chunks.push({
-          text: functionCode,
-          metadata: { chunkType: 'function', name }
-        });
-      }
-      
-      lastIndex = endPos;
-      functionRegex.lastIndex = endPos;
-    }
-    
-    // Add any remaining code
-    if (lastIndex < code.length) {
-      const remainingCode = code.substring(lastIndex).trim();
-      if (remainingCode) {
-        chunks.push({
-          text: remainingCode,
-          metadata: { chunkType: 'code_block' }
-        });
-      }
-    }
-    
-    // If no functions were found, split by lines
-    if (chunks.length === 0) {
-      for (let i = 0; i < lines.length; i += maxLines) {
-        const chunkLines = lines.slice(i, i + maxLines);
-        const chunkText = chunkLines.join('\n').trim();
-        
-        if (chunkText) {
-          chunks.push({
-            text: chunkText,
-            metadata: { chunkType: 'code_lines', startLine: i + 1, endLine: i + chunkLines.length }
-          });
-        }
-      }
-    }
-    
-    // If any chunks are still too large, split by fixed size
-    const finalChunks = [];
-    for (const chunk of chunks) {
-      if (chunk.text.length <= maxChunkSize) {
-        finalChunks.push(chunk);
-      } else {
-        const fixedChunks = this.splitByFixedSize(chunk.text, maxChunkSize, 100);
-        finalChunks.push(...fixedChunks.map(text => ({
-          text,
-          metadata: { ...chunk.metadata, chunkType: 'fixed_size' }
-        })));
-      }
-    }
-    
-    return finalChunks;
-  }
-
-  /**
-   * Split text into sentences using a simple regex
-   * @private
-   */
-  splitIntoSentences(text) {
-    // This is a simple sentence splitter - for production use, consider a more robust solution
-    return text.match(/[^.!?]+[.!?]+\s*/g) || [text];
-  }
-
-  /**
-   * Split text into chunks of fixed size with overlap
-   * @private
-   */
-  splitByFixedSize(text, chunkSize, overlap) {
+    // Simple chunking implementation - can be enhanced with more sophisticated strategies
     const chunks = [];
     let start = 0;
     
-    while (start < text.length) {
+    while (start < content.length) {
       let end = start + chunkSize;
       
-      // Try to find a good breaking point (space or newline)
-      if (end < text.length) {
-        // Look for the last space or newline in the chunk
-        let lastSpace = text.lastIndexOf(' ', end);
-        let lastNewline = text.lastIndexOf('\n', end);
-        
-        // Prefer newline over space if found
-        if (lastNewline > start + (chunkSize * 0.8)) {
-          end = lastNewline + 1;
-        } else if (lastSpace > start + (chunkSize * 0.8)) {
-          end = lastSpace + 1;
+      // Try to find a good breaking point (newline for text, semicolon/brace for code)
+      if (end < content.length) {
+        if (isCode) {
+          // For code, try to break at a semicolon, brace, or newline
+          const nextBreak = Math.min(
+            content.indexOf(';', start + chunkSize - 50) + 1 || Infinity,
+            content.indexOf('}', start + chunkSize - 50) + 1 || Infinity,
+            content.indexOf('\n', start + chunkSize - 20) + 1 || Infinity,
+            start + chunkSize
+          );
+          end = Math.min(nextBreak, start + chunkSize * 1.5); // Don't let it get too big
+        } else {
+          // For text, try to break at a paragraph or sentence
+          const nextPara = content.indexOf('\n\n', start + chunkSize - 50) + 2 || Infinity;
+          const nextSentence = content.indexOf('. ', start + chunkSize - 50) + 2 || Infinity;
+          end = Math.min(nextPara, nextSentence, start + chunkSize * 1.2);
         }
       }
       
-      chunks.push(text.substring(start, end).trim());
+      // If we couldn't find a good break, just take the chunk as is
+      if (end <= start) end = start + chunkSize;
       
-      // Move start position, considering overlap
-      start = Math.max(start + 1, end - overlap);
+      // Add the chunk
+      const chunk = content.slice(start, end).trim();
+      if (chunk.length > 0) {
+        chunks.push(chunk);
+      }
+      
+      // Move the start position, with overlap
+      start = end - Math.min(chunkOverlap, end - start);
+      
+      // If we're not making progress, force a step to avoid infinite loop
+      if (start === end) start += 1;
     }
     
     return chunks;

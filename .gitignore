@@ -28,6 +28,13 @@ yarn-error.log*
 # Database
 *.db
 *.db-journal
+*.db-shm
+*.db-wal
+
+# Test databases
+tests/*.db
+tests/*.db-shm
+tests/*.db-wal
 
 # Build output
 dist/
