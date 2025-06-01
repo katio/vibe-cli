@@ -7,9 +7,13 @@
 Vibe CLI is a powerful command-line tool that enables local AI-powered document search and Q&A using vector embeddings. It allows you to index your codebase or documentation and ask natural language questions to get relevant answers.
 
 ## ✨ Features
-- Local SQLite database with vector embeddings for fast semantic search
-- Cross-platform (Linux, macOS, Windows with WSL or Git Shell)
-- Automatic vector embeddings with sqlite-vec (no manual setup required)
+- **Local SQLite Database**: Fast semantic search with vector embeddings
+- **Multi-Folder Support**: Load and switch between multiple codebases
+- **Smart Command Parsing**: Commands work with or without leading '/'
+- **Command Shortcuts**: Quick access to common commands (e.g., /l for /load, /a for /ask)
+- **Interactive & Direct Modes**: Use interactively or run direct commands
+- **Cross-Platform**: Works on Linux, macOS, and Windows (with WSL or Git Shell)
+- **No Setup Required**: Automatic vector embeddings with sqlite-vec
 
 ## Prerequisites
 
@@ -46,54 +50,183 @@ Edit `src/config/default.json` to configure:
 - File extensions to process
 - Directories to ignore
 
-## Usage
+## 🚀 Getting Started
+
+### Installation
+
+1. Install globally via npm:
+   ```bash
+   npm install -g @vibe/cli
+   ```
+
+   Or use npx:
+   ```bash
+   npx @vibe/cli
+   ```
+
+2. Set up your API key (required for LLM features):
+   ```bash
+   # For OpenAI
+   export OPENAI_API_KEY='your-api-key-here'
+   
+   # Or for Anthropic
+   export ANTHROPIC_API_KEY='your-api-key-here'
+   ```
+
+## 🖥️ Usage
 
 ### Interactive Mode
 
 Start the interactive shell:
 
 ```bash
-npm start interactive
+vibe
 # or
-./src/index.js interactive
+npx @vibe/cli
 ```
 
 ### Commands
 
-- `/load <path>` - Load a directory into the knowledge base
-- `/ask <question>` - Ask a question about your codebase
-- `/help` - Show help information
-- `/exit` or `/quit` - Exit the application
+#### Basic Commands
+- `load <path>` or `/l <path>` - Load a directory into the knowledge base
+- `ask <question>` or `/a <question>` - Ask a question about your codebase
+- `folders` or `/f` - List all loaded folders
+- `use <id|path>` or `/u <id|path>` - Switch to a specific folder
+- `reset` or `/r` - Reset the database (requires confirmation)
+- `help` or `/h` - Show help information
+- `exit`, `quit`, or `/q` - Exit the application
 
-### Direct Commands
+#### Direct Mode
 
-You can also run commands directly:
+Run commands directly without entering interactive mode:
 
 ```bash
 # Load a directory
-npm start load /path/to/your/code
+vibe load /path/to/your/code
 
 # Ask a question
-npm start ask "How does the authentication work?"
+vibe ask "How does the authentication work?"
+
+# List loaded folders
+vibe folders
+
+# Switch to a specific folder by ID or path
+vibe use 1
+vibe use /path/to/folder
 ```
 
-## Development
+#### Smart Command Parsing
+
+- Commands work with or without leading '/'
+- Input without a command is treated as an 'ask' command
+- Partial command matching (e.g., 'lo' for 'load')
+- Tab completion for file paths and commands
+
+#### Examples
+
+```bash
+# These are all equivalent
+/ask How does this work?
+ask How does this work?
+a How does this work?
+How does this work?  # No command prefix needed for ask
+
+# Load a folder
+/load /path/to/project
+l /path/to/project
+
+# List folders
+/folders
+f
+
+# Use a specific folder
+/use 1
+u 2
+
+# Reset the database
+/reset
+r
+```
+
+## 🛠️ Development
+
+### Prerequisites
+
+- Node.js 18+
+- npm or yarn
+- Git
+
+### Getting Started
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/yourusername/vibe-cli.git
+   cd vibe-cli
+   ```
+
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+3. Set up environment variables:
+   ```bash
+   cp .env.example .env
+   # Edit .env with your API keys
+   ```
 
 ### Scripts
 
-- `npm start` - Start the application
+- `npm start` - Start the application in interactive mode
+- `npm run dev` - Start in development mode with file watching
 - `npm run lint` - Run ESLint
 - `npm run format` - Format code with Prettier
 - `npm test` - Run tests
 - `npm run test:watch` - Run tests in watch mode
+- `npm run build` - Build for production
 
 ### Environment Variables
 
-- `OPENAI_API_KEY` - OpenAI API key
-- `ANTHROPIC_API_KEY` - Anthropic API key
-- `GEMINI_API_KEY` - Google Gemini API key
-- `DB_PATH` - Path to SQLite database (default: `./vibe-db.sqlite`)
-- `LOG_LEVEL` - Logging level (default: `info`)
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `OPENAI_API_KEY` | OpenAI API key | - |
+| `ANTHROPIC_API_KEY` | Anthropic API key | - |
+| `GEMINI_API_KEY` | Google Gemini API key | - |
+| `DB_PATH` | Path to SQLite database | `./vibe-db.sqlite` |
+| `LOG_LEVEL` | Logging level | `info` |
+| `MAX_SIMILAR_DOCUMENTS` | Max documents to return for similarity search | `5` |
+
+### Project Structure
+
+```
+src/
+  ├── cli/               # CLI interface and commands
+  ├── commands/          # Command implementations
+  ├── config/           # Configuration management
+  ├── services/         # Core services (database, LLM, etc.)
+  ├── utils/            # Utility functions
+  └── cli.js            # Main entry point
+```
+
+## 🤝 Contributing
+
+Contributions are welcome! Please read our [Contributing Guidelines](CONTRIBUTING.md) for details on how to get started.
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+## 📝 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- Built with ❤️ using Node.js
+- Powered by vector embeddings and modern LLMs
+- Inspired by the need for better code search and understanding tools
 
 ## License
 

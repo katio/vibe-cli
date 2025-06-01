@@ -1,7 +1,7 @@
 {
-  "name": "vibe-cli",
+  "name": "@vibe/cli",
   "version": "1.0.0",
-  "description": "A CLI tool for local AI-powered document search and Q&A using vector embeddings",
+  "description": "A powerful CLI tool for local AI-powered code search and Q&A with multi-folder support and vector embeddings",
   "type": "module",
   "main": "src/cli.js",
   "bin": {
@@ -9,14 +9,17 @@
   },
   "scripts": {
     "start": "node src/cli.js",
-    "dev": "NODE_ENV=development node src/cli.js",
+    "dev": "NODE_ENV=development node --watch src/cli.js",
+    "build": "esbuild src/cli.js --bundle --platform=node --outfile=dist/cli.js --format=esm --target=node18",
+    "prepublishOnly": "npm run build",
     "lint": "eslint . --ext .js",
     "lint:fix": "eslint . --ext .js --fix",
     "format": "prettier --write \"**/*.{js,json,md}\"",
     "test": "NODE_ENV=test mocha test/**/*.test.js --timeout 10000 --exit",
     "test:watch": "NODE_ENV=test mocha test/**/*.test.js --watch --timeout 10000",
     "test:coverage": "NODE_ENV=test c8 mocha test/**/*.test.js --timeout 10000 --exit",
-    "prepare": "husky install"
+    "prepare": "husky install",
+    "release": "standard-version"
   },
   "keywords": [
     "cli",
@@ -27,50 +30,85 @@
     "sqlite",
     "openai",
     "anthropic",
-    "gemini"
+    "gemini",
+    "code-search",
+    "developer-tools",
+    "semantic-search",
+    "documentation",
+    "q&a",
+    "chat"
   ],
-  "author": "",
+  "author": "Your Name <your.email@example.com>",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/vibe-cli.git"
+  },
+  "homepage": "https://github.com/yourusername/vibe-cli#readme",
+  "bugs": {
+    "url": "https://github.com/yourusername/vibe-cli/issues"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "files": [
+    "src/**/*.js",
+    "dist/**/*.js",
+    "README.md",
+    "LICENSE"
+  ],
   "dependencies": {
     "@anthropic-ai/sdk": "^0.23.0",
     "@google/generative-ai": "^0.3.1",
+    "@inquirer/prompts": "^4.2.1",
     "better-sqlite3": "^9.4.3",
     "chalk": "^5.3.0",
+    "chalk-animation": "^2.1.0",
+    "cli-table3": "^0.6.3",
     "commander": "^12.1.0",
     "dotenv": "^16.4.5",
     "figlet": "^1.6.0",
     "glob": "^10.3.10",
     "inquirer": "^9.2.15",
+    "inquirer-autocomplete-prompt": "^3.4.0",
     "node-addon-api": "^7.1.0",
     "openai": "^4.28.0",
     "ora": "^8.0.1",
-    "sqlite-vec": "^0.1.6"
+    "sqlite-vec": "^0.1.6",
+    "update-notifier": "^7.0.0"
   },
   "devDependencies": {
     "@commitlint/cli": "^19.0.3",
     "@commitlint/config-conventional": "^19.0.3",
-    "c8": "^9.1.0",
-    "chai": "^5.1.2",
-    "eslint": "^8.56.0",
+    "@types/chai": "^4.3.8",
+    "@types/chai-as-promised": "^7.1.8",
+    "@types/mocha": "^10.0.6",
+    "@types/node": "^20.10.5",
+    "c8": "^8.0.1",
+    "chai": "^4.3.10",
+    "chai-as-promised": "^7.1.1",
+    "esbuild": "^0.19.8",
+    "eslint": "^8.55.0",
     "eslint-config-prettier": "^9.1.0",
-    "eslint-plugin-import": "^2.29.1",
-    "eslint-plugin-mocha": "^10.4.0",
-    "eslint-plugin-node": "^11.1.0",
-    "eslint-plugin-prettier": "^5.1.3",
-    "husky": "^9.0.10",
-    "lint-staged": "^15.2.0",
-    "mocha": "^10.4.0",
-    "prettier": "^3.2.5",
-    "sinon": "^17.0.1"
-  },
-  "engines": {
-    "node": ">=18.0.0"
+    "eslint-plugin-prettier": "^5.1.2",
+    "husky": "^9.0.5",
+    "lint-staged": "^15.1.0",
+    "mocha": "^10.2.0",
+    "prettier": "^3.1.1",
+    "standard-version": "^9.5.0",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.3.2"
   },
   "lint-staged": {
     "*.{js,json,md}": [
       "prettier --write",
-      "eslint --fix"
+      "git add"
     ]
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "lint-staged"
+    }
   },
   "eslintConfig": {
     "extends": [
