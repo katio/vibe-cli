@@ -1,0 +1,23 @@
+{
+  "activeProvider": "openai",
+  "llmModels": {
+    "openai": {
+      "chatModel": "gpt-3.5-turbo",
+      "embeddingModel": "text-embedding-3-small",
+      "embeddingDimension": 1536
+    },
+    "anthropic": {
+      "chatModel": "claude-3-haiku-20240307",
+      "embeddingModel": null,
+      "embeddingDimension": null
+    },
+    "gemini": {
+      "chatModel": "gemini-1.5-flash-latest",
+      "embeddingModel": "text-embedding-004",
+      "embeddingDimension": 768
+    }
+  },
+  "chunkSize": 1000,
+  "chunkOverlap": 100,
+  "maxSimilarDocuments": 5
+}

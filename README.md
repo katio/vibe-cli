@@ -1,12 +1,12 @@
 # Vibe CLI
 
-A powerful CLI tool for "vibe coding" and development assistance. This tool helps you load, index, and query your codebase using AI-powered semantic search.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)](https://nodejs.org/)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
-## Features
+Vibe CLI is a powerful command-line tool that enables local AI-powered document search and Q&A using vector embeddings. It allows you to index your codebase or documentation and ask natural language questions to get relevant answers.
 
-- Load and index codebases with smart chunking
-- Ask questions about your code in natural language
-- Supports multiple LLM providers (OpenAI, Anthropic, Gemini)
+## ✨ Features
 - Local SQLite database with vector embeddings for fast semantic search
 - Cross-platform (Linux, macOS, Windows with WSL or Git Shell)
 - Automatic vector embeddings with sqlite-vec (no manual setup required)
@@ -99,9 +99,24 @@ npm start ask "How does the authentication work?"
 
 MIT
 
-## Contributing
+## 🧪 Testing
 
-Contributions are welcome! Please open an issue or submit a pull request.
+To run the test suite:
+
+```bash
+# Install development dependencies
+npm install
+
+# Run tests
+npm test
+
+# Run tests with coverage
+npm run test:coverage
+```
+
+## 🤝 Contributing
+
+Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md) for details on how to contribute to this project.
 
 ## Acknowledgements
 
