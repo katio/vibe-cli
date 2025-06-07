@@ -4,13 +4,12 @@ import ora from 'ora';
 import { getEmbedding, getChatCompletion } from '../services/llm.js';
 import { db } from '../services/database.js';
 import { getConfig } from '../config/index.js';
-import { appState } from '../cli/index.js';
-
 /**
  * Ask a question and get an answer based on the indexed documents
  * @param {string} question - The question to ask
+ * @param {Object} appState - The application state
  */
-async function askCommand(question) {
+async function askCommand(question, appState) {
   const config = getConfig();
   const spinner = ora('Thinking...').start();
   
@@ -47,9 +46,16 @@ async function askCommand(question) {
     
     // Get relevant context
     spinner.text = 'Searching in knowledge base...';
-    const context = db.findSimilarDocuments(questionEmbedding, config.maxSimilarDocuments || 5);
+    let context = [];
+    try {
+      context = await db.findSimilarDocuments(questionEmbedding, config.maxSimilarDocuments || 5);
+    } catch (error) {
+      console.error('Error finding similar documents:', error);
+      spinner.fail('Error searching knowledge base');
+      return;
+    }
     
-    if (context.length === 0) {
+    if (!context || context.length === 0) {
       spinner.fail('No relevant information found in the knowledge base');
       console.log(chalk.yellow('\nTry loading more content or rephrasing your question.\n'));
       return;

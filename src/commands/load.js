@@ -5,13 +5,13 @@ import ora from 'ora';
 import chalk from 'chalk';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
-import { appState, nextFolderId } from '../cli/index.js';
-
 /**
  * Load command handler
  * @param {string} dirPath - Path to the directory to load
+ * @param {Object} appState - The application state
+ * @param {number} nextFolderId - The next folder ID to use
  */
-export async function loadCommand(dirPath) {
+export async function loadCommand(dirPath, appState, nextFolderId) {
   const spinner = ora('Scanning directory...').start();
   
   try {

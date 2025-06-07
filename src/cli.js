@@ -1,15 +1,19 @@
 #!/usr/bin/env node
 
-import chalk from 'chalk';
-import { handleUncaughtExceptions, handleUnhandledRejections, handleSigterm } from './utils/errorHandler.js';
-import cli, { appState } from './cli/index.js';
-import { askCommand } from './commands/ask.js';
-import { loadCommand } from './commands/load.js';
+// Load environment variables first
+import 'dotenv/config';
 
-// Set up global error handlers
+// Set up global error handlers before anything else
+import { handleUncaughtExceptions, handleUnhandledRejections, handleSigterm } from './utils/errorHandler.js';
 handleUncaughtExceptions();
 handleUnhandledRejections();
 handleSigterm();
+
+// Now import other dependencies
+import chalk from 'chalk';
+import cli, { appState } from './cli/index.js';
+import { askCommand } from './commands/ask.js';
+import { loadCommand } from './commands/load.js';
 
 // Display Node.js version requirement
 const requiredVersion = '18.0.0';
@@ -124,6 +128,16 @@ async function main() {
 
 // Only run if this is the main module (not required/imported)
 if (import.meta.url === `file://${process.argv[1]}`) {
+  // Check for required environment variables
+  if (!process.env.OPENAI_API_KEY && !process.env.ANTHROPIC_API_KEY && !process.env.GEMINI_API_KEY) {
+    console.error(chalk.red('\n❌ Error: No API key found. Please set one of the following environment variables:'));
+    console.error(chalk.yellow('  - OPENAI_API_KEY'));
+    console.error(chalk.yellow('  - ANTHROPIC_API_KEY'));
+    console.error(chalk.yellow('  - GEMINI_API_KEY'));
+    console.error('\nYou can create a .env file in the project root with your API key.');
+    process.exit(1);
+  }
+  
   main();
 }
 

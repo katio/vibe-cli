@@ -193,7 +193,12 @@ export async function processDirectory(dirPath, progressCallback = () => {}) {
         
         // Store chunks and embeddings in database
         if (chunksWithEmbeddings.length > 0) {
-          await db.storeDocumentChunks(chunksWithEmbeddings);
+          const result = await db.storeDocumentChunks(chunksWithEmbeddings);
+          if (!result.success) {
+            console.error(`Failed to store chunks for ${file}:`, result.error || 'Unknown error');
+          } else {
+            console.log(`Stored ${result.processed} chunks for ${file}`);
+          }
         }
         
       } catch (error) {

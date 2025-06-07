@@ -39,3 +39,12 @@ tests/*.db-wal
 # Build output
 dist/
 build/
+
+# SQLite database
+*.sqlite
+*.sqlite-journal
+*.sqlite-shm
+*.sqlite-wal
+
+*.sqlite
+**/*.sqlite

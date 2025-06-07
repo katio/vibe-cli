@@ -325,14 +325,21 @@ class VibeCLI {
       if (commands.has(name)) {
         const command = commands.get(name);
         try {
-          await command.handler(...args);
+          // Pass appState and other context to commands that need it
+          if (name === 'explain' || name === 'ask') {
+            await command.handler(args.join(' '), appState);
+          } else if (name === 'load') {
+            await command.handler(args[0], appState, nextFolderId);
+          } else {
+            await command.handler(...args);
+          }
         } catch (error) {
           console.error(chalk.red(`\nError executing command /${name}:`), error.message);
         }
       } else if (name === 'ask' || name === 'a') {
         // Handle direct questions
         try {
-          await askCommand.handler(args.join(' '));
+          await askCommand.handler(args.join(' '), appState);
         } catch (error) {
           console.error(chalk.red('\nError:'), error.message);
         }
@@ -349,12 +356,25 @@ class VibeCLI {
 // Create and export a singleton instance
 const cli = new VibeCLI();
 
+// Function to get and increment the next folder ID
+const getNextFolderId = () => nextFolderId++;
+
+// Export for use in other modules
+export const state = {
+  appState,
+  nextFolderId: getNextFolderId,
+  listFolders,
+  useFolder,
+  resetDatabase
+};
+
 export { 
-  cli as default, 
-  VibeCLI, 
-  appState, 
+  VibeCLI,
+  appState,
   nextFolderId,
   listFolders,
   useFolder,
   resetDatabase
 };
+
+export default cli;
